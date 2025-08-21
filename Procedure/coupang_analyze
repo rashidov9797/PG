@@ -1,1 +1,67 @@
 
+# Bu protseduramiz coupang DB uchun yaratilgan protsedura hisoblanadi.
+
+
+CREATE OR REPLACE PROCEDURE mamlakat_xarid_tahlili(
+    p_mamlakat VARCHAR(50)
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    jami_foydalanuvchilar INTEGER;
+    erkak_foydalanuvchilar INTEGER;
+    ayol_foydalanuvchilar INTEGER;
+    eng_mashhur_mahsulot VARCHAR(50);
+    eng_mashhur_mahsulot_soni INTEGER;
+    jami_xaridlar INTEGER;
+    hisobot_yozuvi RECORD;
+BEGIN
+    SELECT COUNT(*) INTO jami_foydalanuvchilar 
+    FROM coupang 
+    WHERE country = p_mamlakat;
+    
+    SELECT COUNT(*) INTO erkak_foydalanuvchilar 
+    FROM coupang 
+    WHERE country = p_mamlakat AND gender = 'Male';
+    
+    SELECT COUNT(*) INTO ayol_foydalanuvchilar 
+    FROM coupang 
+    WHERE country = p_mamlakat AND gender = 'Female';
+    
+    SELECT COUNT(*) INTO jami_xaridlar 
+    FROM coupang 
+    WHERE country = p_mamlakat AND product IS NOT NULL;
+    
+    SELECT product, COUNT(*) as xarid_soni INTO eng_mashhur_mahsulot, eng_mashhur_mahsulot_soni
+    FROM coupang 
+    WHERE country = p_mamlakat AND product IS NOT NULL
+    GROUP BY product 
+    ORDER BY xarid_soni DESC 
+    LIMIT 1;
+    
+    RAISE NOTICE '===== % MAMLAKAT BO''YICHA HISOBOT =====', p_mamlakat;
+    RAISE NOTICE 'Jami foydalanuvchilar: %', jami_foydalanuvchilar;
+    RAISE NOTICE 'Erkak foydalanuvchilar: %', erkak_foydalanuvchilar;
+    RAISE NOTICE 'Ayol foydalanuvchilar: %', ayol_foydalanuvchilar;
+    RAISE NOTICE 'Jami xaridlar soni: %', jami_xaridlar;
+    RAISE NOTICE 'Eng mashhur mahsulot: % (% ta xarid)', 
+                 COALESCE(eng_mashhur_mahsulot, 'Ma''lumot yo''q'), eng_mashhur_mahsulot_soni;
+    RAISE NOTICE '=====================================';
+    
+    RAISE NOTICE 'ENG MASHHUR 3 TA MAHSULOT:';
+    FOR hisobot_yozuvi IN
+        SELECT product, COUNT(*) as xarid_soni
+        FROM coupang
+        WHERE country = p_mamlakat AND product IS NOT NULL
+        GROUP BY product
+        ORDER BY xarid_soni DESC
+        LIMIT 3
+    LOOP
+        RAISE NOTICE '- %: % ta xarid', hisobot_yozuvi.product, hisobot_yozuvi.xarid_soni;
+    END LOOP;
+    
+    IF jami_foydalanuvchilar = 0 THEN
+        RAISE NOTICE 'Eslatma: % mamlakatida foydalanuvchilar topilmadi', p_mamlakat;
+    END IF;
+END;
+$$;
